@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlashScan — Tarjetas de estudio</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">FlashScan</span>
+    </div>
+    <p class="tagline">Fotos de apuntes → Tarjetas de estudio imprimibles</p>
+  </header>
+
+  <main>
+
+    <!-- STEP 1: Upload -->
+    <section class="step" id="step-upload">
+      <div class="step-number">01</div>
+      <h2>Sube tus apuntes</h2>
+      <p class="step-desc">Toma fotos de tus páginas o selecciónalas desde la galería. Puedes añadir varias.</p>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="image/*" multiple capture="environment" />
+        <div class="upload-inner">
+          <div class="upload-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect x="8" y="14" width="32" height="26" rx="3" stroke="currentColor" stroke-width="2"/>
+              <circle cx="24" cy="27" r="7" stroke="currentColor" stroke-width="2"/>
+              <path d="M18 14V11a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3" stroke="currentColor" stroke-width="2"/>
+              <circle cx="35" cy="20" r="2" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="upload-label">Toca para tomar foto</span>
+          <span class="upload-sublabel">o arrastra imágenes aquí</span>
+        </div>
+      </div>
+
+      <!-- Preview grid -->
+      <div class="preview-grid" id="previewGrid"></div>
+
+      <div class="action-row" id="actionRow" style="display:none">
+        <button class="btn-ghost" id="clearBtn">✕ Limpiar todo</button>
+        <span class="photo-count" id="photoCount"></span>
+        <button class="btn-primary" id="nextBtn">Continuar →</button>
+      </div>
+    </section>
+
+    <!-- STEP 2: Config -->
+    <section class="step hidden" id="step-config">
+      <div class="step-number">02</div>
+      <h2>Configura tu PDF</h2>
+      <p class="step-desc">Ajusta la cuadrícula de tarjetas. Por defecto: 3 columnas × 5 filas = 15 tarjetas por hoja.</p>
+
+      <div class="config-panel">
+        <div class="config-group">
+          <label for="colsInput">Columnas</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="colsInput" data-delta="-1">−</button>
+            <input type="number" id="colsInput" value="3" min="1" max="6" />
+            <button class="stepper-btn" data-target="colsInput" data-delta="1">+</button>
+          </div>
+        </div>
+
+        <div class="config-sep">×</div>
+
+        <div class="config-group">
+          <label for="rowsInput">Filas</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="rowsInput" data-delta="-1">−</button>
+            <input type="number" id="rowsInput" value="5" min="1" max="8" />
+            <button class="stepper-btn" data-target="rowsInput" data-delta="1">+</button>
+          </div>
+        </div>
+
+        <div class="config-result">
+          <span id="cardTotal">15</span>
+          <small>tarjetas / hoja</small>
+        </div>
+      </div>
+
+      <!-- Live preview of grid -->
+      <div class="grid-preview" id="gridPreview"></div>
+
+      <div class="action-row">
+        <button class="btn-ghost" id="backBtn">← Volver</button>
+        <button class="btn-primary" id="generateBtn">
+          <span class="btn-text">⚡ Generar tarjetas</span>
+          <span class="btn-loader" style="display:none">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </span>
+        </button>
+      </div>
+    </section>
+
+    <!-- STEP 3: Result -->
+    <section class="step hidden" id="step-result">
+      <div class="step-number">03</div>
+      <h2>¡Listo para imprimir!</h2>
+      <p class="step-desc">Tu PDF está generado. Imprime en doble cara y recorta las tarjetas.</p>
+
+      <div class="result-card">
+        <div class="result-icon">📄</div>
+        <div class="result-info">
+          <span id="resultFilename">flashcards.pdf</span>
+          <small id="resultMeta"></small>
+        </div>
+        <a class="btn-download" id="downloadBtn" href="#" download="flashcards.pdf">
+          ↓ Descargar PDF
+        </a>
+      </div>
+
+      <div class="print-tips">
+        <h3>Cómo imprimir</h3>
+        <ol>
+          <li>Abre el PDF y selecciona <strong>Imprimir en doble cara</strong> (voltear por el lado corto).</li>
+          <li>Las preguntas están en páginas impares, las respuestas en páginas pares — ya espejadas.</li>
+          <li>Recorta siguiendo las guías y listo.</li>
+        </ol>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-ghost" id="restartBtn">← Nueva sesión</button>
+      </div>
+    </section>
+
+    <!-- Progress indicator -->
+    <div class="progress-bar">
+      <div class="progress-step active" data-step="1">1</div>
+      <div class="progress-line"></div>
+      <div class="progress-step" data-step="2">2</div>
+      <div class="progress-line"></div>
+      <div class="progress-step" data-step="3">3</div>
+    </div>
+
+  </main>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>

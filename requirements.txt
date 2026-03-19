@@ -1,0 +1,24 @@
+# FlashScan — Dependencias Python
+# Instalar con: pip install -r requirements.txt --break-system-packages
+# O en entorno virtual: pip install -r requirements.txt
+
+# ── Servidor web ──────────────────────────────────────────────────
+flask>=3.0.0
+werkzeug>=3.0.0
+
+# ── OCR ───────────────────────────────────────────────────────────
+pytesseract>=0.3.13      # wrapper Python para Tesseract
+opencv-python>=4.9.0     # preprocesamiento de imágenes
+Pillow>=10.3.0            # manejo de formatos de imagen
+
+# ── IA — Ollama (local, no requiere instalación de paquete Python) ─
+# Ollama expone una API REST en localhost:11434
+# Instalar Ollama: curl -fsSL https://ollama.com/install.sh | sh
+# Descargar modelo: ollama pull llama3.2:3b
+# Correr en segundo plano: ollama serve &
+
+# ── Generación de PDF ─────────────────────────────────────────────
+reportlab>=4.2.0
+
+# ── Utilidades ────────────────────────────────────────────────────
+numpy>=1.26.0             # requerido por OpenCV
