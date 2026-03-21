@@ -169,7 +169,7 @@ generateBtn.addEventListener('click', async () => {
   formData.append('rows', state.rows);
 
   try {
-    const response = await fetch('/generate', {
+    const response = await fetch('generate', {
       method: 'POST',
       body: formData,
     });

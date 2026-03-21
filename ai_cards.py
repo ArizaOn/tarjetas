@@ -16,10 +16,10 @@ import urllib.request
 import urllib.error
 
 # ─── Configuración ───────────────────────────────────────────────
-OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_URL = "http://localhost:11434/api/generate"
 
 # Cambia a "llama3.1:8b" si tu servidor lo aguanta
-MODEL = "llama3.2:3b"
+MODEL = "llama3.2:latest"
 
 SYSTEM_PROMPT = """Eres un experto en pedagogía y creación de material de estudio.
 Tu tarea es analizar notas y apuntes de clase para generar flashcards de estudio.
@@ -100,12 +100,9 @@ def generate_flashcards(text: str, max_cards: int = 45) -> list[dict]:
         "stream": False,
         "options": {
             "temperature": 0.2,
-            "num_predict": 2048,
+            "num_predict": 1028,
         },
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": build_user_prompt(text, max_cards)},
-        ],
+        "prompt": f"{SYSTEM_PROMPT}\n\n{build_user_prompt(text, max_cards)}",
     }
 
     body = json.dumps(payload).encode("utf-8")
@@ -119,7 +116,7 @@ def generate_flashcards(text: str, max_cards: int = 45) -> list[dict]:
     print(f"[IA] Enviando a Ollama ({MODEL})...")
 
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
+        with urllib.request.urlopen(req, timeout=1000) as resp:
             result = json.loads(resp.read().decode("utf-8"))
     except urllib.error.URLError as e:
         raise RuntimeError(
@@ -129,7 +126,7 @@ def generate_flashcards(text: str, max_cards: int = 45) -> list[dict]:
         )
 
     try:
-        raw_response = result["message"]["content"]
+        raw_response = result["response"]
     except (KeyError, TypeError) as e:
         raise RuntimeError(f"Respuesta inesperada de Ollama: {result}") from e
 
