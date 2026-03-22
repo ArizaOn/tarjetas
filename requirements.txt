@@ -10,6 +10,7 @@ werkzeug>=3.0.0
 pytesseract>=0.3.13      # wrapper Python para Tesseract
 opencv-python>=4.9.0     # preprocesamiento de imágenes
 Pillow>=10.3.0            # manejo de formatos de imagen
+groq
 
 # ── IA — Ollama (local, no requiere instalación de paquete Python) ─
 # Ollama expone una API REST en localhost:11434

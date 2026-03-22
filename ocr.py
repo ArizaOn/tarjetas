@@ -1,133 +1,84 @@
 """
-ocr.py — Extracción de texto con Tesseract OCR
-Soporta español e inglés. Aplica preprocesamiento con OpenCV para mejorar calidad.
+ocr.py — Extracción de texto con Groq Vision API (usando SDK oficial)
+Usa llama-3.2-11b-vision, excelente para letra manuscrita.
+Gratis, sin tarjeta de crédito.
 """
 
-import re
+import base64
+import os
 from pathlib import Path
 
-import cv2
-import numpy as np
-import pytesseract
-from PIL import Image
+from groq import Groq
 
-# Idiomas para Tesseract (español + inglés)
-TESSERACT_LANG = "spa+eng"
-
-# Configuración de Tesseract: modo de segmentación automático + engine LSTM
-TESSERACT_CONFIG = "--psm 1 --oem 3"
-
-
-def preprocess_image(image_path: str) -> np.ndarray:
-    """
-    Preprocesa la imagen para mejorar el reconocimiento OCR:
-    - Convierte a escala de grises
-    - Aumenta contraste (CLAHE)
-    - Binariza con umbral adaptativo
-    - Elimina ruido
-    """
-    img = cv2.imread(image_path)
-
-    if img is None:
-        # Intentar con PIL como fallback (para formatos como HEIC parcialmente)
-        pil_img = Image.open(image_path).convert("RGB")
-        img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-
-    # Redimensionar si es muy pequeña (mínimo 1500px de ancho para buena lectura)
-    h, w = img.shape[:2]
-    if w < 1500:
-        scale = 1500 / w
-        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
-
-    # Escala de grises
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # CLAHE — mejora contraste de forma adaptativa (útil para fotos con luz irregular)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    gray = clahe.apply(gray)
-
-    # Umbral adaptativo para binarización robusta ante sombras y gradientes de luz
-    binary = cv2.adaptiveThreshold(
-        gray, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        blockSize=31,
-        C=10,
-    )
-
-    # Reducción de ruido morfológico
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
-    clean  = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-
-    return clean
+MODEL  = "meta-llama/llama-4-scout-17b-16e-instruct"
+PROMPT = """Please transcribe ALL the text you can see in this image, exactly as written.
+Include every word, title, definition, and note.
+Return only the transcribed text, nothing else. No explanations, no comments."""
 
 
 def extract_text_from_image(image_path: str) -> str:
-    """
-    Extrae texto de una sola imagen.
-    Devuelve el texto como string.
-    """
-    try:
-        processed = preprocess_image(image_path)
-        pil_image = Image.fromarray(processed)
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY no está configurada.")
 
-        text = pytesseract.image_to_string(
-            pil_image,
-            lang=TESSERACT_LANG,
-            config=TESSERACT_CONFIG,
-        )
-        return text
+    ext = Path(image_path).suffix.lower()
+    mime_types = {
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".png": "image/png", ".webp": "image/webp",
+    }
+    mime_type = mime_types.get(ext, "image/jpeg")
 
-    except pytesseract.TesseractNotFoundError:
-        raise RuntimeError(
-            "Tesseract no está instalado o no se encontró en el PATH. "
-            "Instala con: sudo apt install tesseract-ocr tesseract-ocr-spa"
-        )
-    except Exception as exc:
-        print(f"[OCR] Error procesando {image_path}: {exc}")
-        return ""
+    with open(image_path, "rb") as f:
+        image_data = base64.b64encode(f.read()).decode("utf-8")
+
+    client = Groq(api_key=api_key)
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{image_data}"
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": PROMPT
+                    }
+                ]
+            }
+        ],
+        max_tokens=2048,
+        temperature=0.1,
+    )
+
+    return response.choices[0].message.content.strip()
 
 
 def clean_text(text: str) -> str:
-    """
-    Limpia el texto extraído por Tesseract:
-    - Elimina líneas con solo caracteres raros (artefactos OCR)
-    - Colapsa múltiples líneas vacías
-    - Elimina caracteres de control
-    """
+    import re
     lines = text.splitlines()
-    cleaned = []
-    for line in lines:
-        stripped = line.strip()
-        # Descartar líneas que son básicamente ruido (menos de 3 chars reales)
-        real_chars = re.sub(r'[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ]', '', stripped)
-        if len(real_chars) >= 2:
-            cleaned.append(stripped)
-
-    # Colapsar líneas vacías múltiples en una sola
-    result = re.sub(r'\n{3,}', '\n\n', '\n'.join(cleaned))
-    return result.strip()
+    cleaned = [line.strip() for line in lines if len(line.strip()) >= 2]
+    return re.sub(r'\n{3,}', '\n\n', '\n'.join(cleaned)).strip()
 
 
 def extract_text_from_images(image_paths: list[str]) -> str:
-    """
-    Extrae y concatena el texto de una lista de imágenes.
-    Separa cada página con un marcador para que la IA entienda la estructura.
-
-    Args:
-        image_paths: lista de rutas a las imágenes, en orden.
-
-    Returns:
-        Texto combinado de todas las páginas.
-    """
     parts = []
     for i, path in enumerate(image_paths, start=1):
         print(f"[OCR] Procesando imagen {i}/{len(image_paths)}: {Path(path).name}")
-        raw   = extract_text_from_image(path)
-        clean = clean_text(raw)
-        if clean:
-            parts.append(f"--- Página {i} ---\n{clean}")
-        else:
-            print(f"[OCR] Advertencia: no se extrajo texto de {Path(path).name}")
+        try:
+            raw   = extract_text_from_image(path)
+            clean = clean_text(raw)
+            if clean:
+                parts.append(f"--- Página {i} ---\n{clean}")
+                print(f"[OCR] ✓ {len(clean)} caracteres extraídos")
+            else:
+                print(f"[OCR] Advertencia: no se extrajo texto de {Path(path).name}")
+        except Exception as e:
+            print(f"[OCR] Error en {Path(path).name}: {e}")
 
     return "\n\n".join(parts)

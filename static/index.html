@@ -43,7 +43,6 @@
         </div>
       </div>
 
-      <!-- Preview grid -->
       <div class="preview-grid" id="previewGrid"></div>
 
       <div class="action-row" id="actionRow" style="display:none">
@@ -68,9 +67,7 @@
             <button class="stepper-btn" data-target="colsInput" data-delta="1">+</button>
           </div>
         </div>
-
         <div class="config-sep">×</div>
-
         <div class="config-group">
           <label for="rowsInput">Filas</label>
           <div class="stepper">
@@ -79,14 +76,12 @@
             <button class="stepper-btn" data-target="rowsInput" data-delta="1">+</button>
           </div>
         </div>
-
         <div class="config-result">
           <span id="cardTotal">15</span>
           <small>tarjetas / hoja</small>
         </div>
       </div>
 
-      <!-- Live preview of grid -->
       <div class="grid-preview" id="gridPreview"></div>
 
       <div class="action-row">
@@ -103,30 +98,106 @@
     <!-- STEP 3: Result -->
     <section class="step hidden" id="step-result">
       <div class="step-number">03</div>
-      <h2>¡Listo para imprimir!</h2>
-      <p class="step-desc">Tu PDF está generado. Imprime en doble cara y recorta las tarjetas.</p>
+      <h2>¡Listo!</h2>
+      <p class="step-desc">Tus tarjetas están generadas. Descarga el PDF o usa la impresión controlada para imprimir doble cara correctamente.</p>
 
-      <div class="result-card">
-        <div class="result-icon">📄</div>
-        <div class="result-info">
-          <span id="resultFilename">flashcards.pdf</span>
-          <small id="resultMeta"></small>
-        </div>
+      <!-- Botones principales -->
+      <div class="result-buttons">
         <a class="btn-download" id="downloadBtn" href="#" download="flashcards.pdf">
-          ↓ Descargar PDF
+          ↓ Descargar PDF completo
         </a>
+        <button class="btn-print" id="printBtn">
+          🖨 Impresión controlada
+        </button>
       </div>
 
-      <div class="print-tips">
-        <h3>Cómo imprimir</h3>
-        <ol>
-          <li>Abre el PDF y selecciona <strong>Imprimir en doble cara</strong> (voltear por el lado corto).</li>
-          <li>Las preguntas están en páginas impares, las respuestas en páginas pares — ya espejadas.</li>
-          <li>Recorta siguiendo las guías y listo.</li>
-        </ol>
+      <!-- Panel de impresión controlada -->
+      <div class="print-panel hidden" id="printPanel">
+
+        <div class="print-step-indicator">
+          <div class="pstep active" id="pstep1">
+            <span class="pstep-num">1</span>
+            <span class="pstep-label">Imprimir preguntas</span>
+          </div>
+          <div class="pstep-line"></div>
+          <div class="pstep" id="pstep2">
+            <span class="pstep-num">2</span>
+            <span class="pstep-label">Acomodar hojas</span>
+          </div>
+          <div class="pstep-line"></div>
+          <div class="pstep" id="pstep3">
+            <span class="pstep-num">3</span>
+            <span class="pstep-label">Imprimir respuestas</span>
+          </div>
+        </div>
+
+        <!-- Fase 1: Imprimir preguntas -->
+        <div class="print-phase" id="phase1">
+          <h3>Paso 1 — Imprime las preguntas</h3>
+
+          <!-- Video fase 1 -->
+          <video
+            class="phase-video"
+            src="/tarjetas/static/01.mp4"
+            autoplay
+            loop
+            muted
+            playsinline
+          ></video>
+
+          <p>Se abrirá el diálogo de impresión con las páginas de preguntas. Imprime todas las hojas normalmente.</p>
+          <div class="print-info" id="printInfo"></div>
+          <button class="btn-primary" id="printQuestionsBtn">🖨 Imprimir preguntas ahora</button>
+        </div>
+
+        <!-- Fase 2: Instrucciones para acomodar -->
+        <div class="print-phase hidden" id="phase2">
+          <h3>Paso 2 — Acomoda las hojas</h3>
+
+          <!-- Video fase 2 -->
+          <video
+            class="phase-video"
+            src="/tarjetas/static/02.mp4"
+            autoplay
+            loop
+            muted
+            playsinline
+          ></video>
+
+          <div class="instructions">
+            <p>Ten en cuenta que estas instrucciones pueden ir variando dependiendo de tu impresora.</p>
+            <p>Antes de continuar, sigue estas instrucciones para que las respuestas queden al reverso de cada pregunta:</p>
+            <ol>
+              <li>Toma las hojas impresas y acomoda las hojas de tal manera que la parte superior de las hojas quede más cerca de la impresora y la parte inferior quede más lejos.</li>
+              <li>Hasta arriba deben de estar las primeras preguntas y hasta abajo las últimas preguntas.</li>
+              <li>Deben de quedar todas las hojas con la parte de las respuestas hacia arriba.</li>
+              <li>Vuelve a colocar las hojas en la bandeja de entrada de la impresora.</li>
+              <li>Cuando estés listo, haz clic en <strong>"Imprimir respuestas"</strong>.</li>
+            </ol>
+            <div class="sheet-order" id="sheetOrder"></div>
+          </div>
+          <div class="action-row">
+            <button class="btn-ghost" id="backToPhase1Btn">← Reintentar preguntas</button>
+            <button class="btn-primary" id="continueToPhase3Btn">Ya acomodé las hojas →</button>
+          </div>
+        </div>
+
+        <!-- Fase 3: Imprimir respuestas -->
+        <div class="print-phase hidden" id="phase3">
+          <h3>Paso 3 — Imprime las respuestas</h3>
+          <p>Se abrirá el diálogo de impresión con las páginas de respuestas. Las respuestas quedarán exactamente al reverso de cada pregunta.</p>
+          <button class="btn-primary" id="printAnswersBtn">🖨 Imprimir respuestas ahora</button>
+        </div>
+
+        <!-- Fase 4: Completado -->
+        <div class="print-phase hidden" id="phase4">
+          <h3>✓ ¡Impresión completa!</h3>
+          <p>Ahora solo recorta las tarjetas siguiendo las marcas de corte. ¡A estudiar!</p>
+        </div>
+
       </div>
 
-      <div class="action-row">
+      <div class="action-row" style="margin-top:1.5rem">
         <button class="btn-ghost" id="restartBtn">← Nueva sesión</button>
       </div>
     </section>
@@ -142,8 +213,10 @@
 
   </main>
 
-  <!-- Toast notifications -->
   <div class="toast-container" id="toastContainer"></div>
+
+  <iframe id="printFrameQ" style="display:none"></iframe>
+  <iframe id="printFrameA" style="display:none"></iframe>
 
   <script src="/tarjetas/static/script.js"></script>
 </body>

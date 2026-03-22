@@ -4,7 +4,10 @@ const state = {
   cols: 3,
   rows: 5,
   currentStep: 1,
-  downloadUrl: null,
+  questionsUrl: null,
+  answersUrl: null,
+  totalSheets: 0,
+  totalCards: 0,
 };
 
 // ─── DOM refs ─────────────────────────────────────────────────────
@@ -23,30 +26,25 @@ const rowsInput    = document.getElementById('rowsInput');
 const cardTotal    = document.getElementById('cardTotal');
 const gridPreview  = document.getElementById('gridPreview');
 const downloadBtn  = document.getElementById('downloadBtn');
-const resultMeta   = document.getElementById('resultMeta');
+const printBtn     = document.getElementById('printBtn');
+const printPanel   = document.getElementById('printPanel');
 
 // ─── Step navigation ──────────────────────────────────────────────
 function goToStep(n) {
   document.querySelectorAll('.step').forEach(s => s.classList.add('hidden'));
   document.getElementById(`step-${['upload','config','result'][n-1]}`).classList.remove('hidden');
-
   document.querySelectorAll('.progress-step').forEach((el, i) => {
     el.classList.remove('active', 'done');
     if (i + 1 < n)  el.classList.add('done');
     if (i + 1 === n) el.classList.add('active');
   });
-
   state.currentStep = n;
   if (n === 2) renderGridPreview();
 }
 
 // ─── File handling ────────────────────────────────────────────────
 fileInput.addEventListener('change', e => handleFiles(Array.from(e.target.files)));
-
-uploadZone.addEventListener('dragover', e => {
-  e.preventDefault();
-  uploadZone.classList.add('drag-over');
-});
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => {
   e.preventDefault();
@@ -61,7 +59,6 @@ function handleFiles(newFiles) {
     addPreview(file, state.files.length - 1);
   });
   updateActionRow();
-  // reset input so same file can be re-selected
   fileInput.value = '';
 }
 
@@ -71,10 +68,7 @@ function addPreview(file, index) {
     const item = document.createElement('div');
     item.className = 'preview-item';
     item.dataset.index = index;
-    item.innerHTML = `
-      <img src="${e.target.result}" alt="Página ${index + 1}" />
-      <button class="remove-btn" title="Eliminar">✕</button>
-    `;
+    item.innerHTML = `<img src="${e.target.result}" alt="Página ${index + 1}" /><button class="remove-btn" title="Eliminar">✕</button>`;
     item.querySelector('.remove-btn').addEventListener('click', ev => {
       ev.stopPropagation();
       removeFile(parseInt(item.dataset.index));
@@ -86,7 +80,6 @@ function addPreview(file, index) {
 
 function removeFile(index) {
   state.files.splice(index, 1);
-  // Re-render all previews
   previewGrid.innerHTML = '';
   state.files.forEach((f, i) => addPreview(f, i));
   updateActionRow();
@@ -98,17 +91,9 @@ function updateActionRow() {
   photoCount.textContent = `${n} página${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''}`;
 }
 
-clearBtn.addEventListener('click', () => {
-  state.files = [];
-  previewGrid.innerHTML = '';
-  updateActionRow();
-});
-
+clearBtn.addEventListener('click', () => { state.files = []; previewGrid.innerHTML = ''; updateActionRow(); });
 nextBtn.addEventListener('click', () => {
-  if (state.files.length === 0) {
-    toast('Añade al menos una imagen', 'error');
-    return;
-  }
+  if (state.files.length === 0) { toast('Añade al menos una imagen', 'error'); return; }
   goToStep(2);
 });
 
@@ -116,15 +101,11 @@ nextBtn.addEventListener('click', () => {
 document.querySelectorAll('.stepper-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const target = document.getElementById(btn.dataset.target);
-    const delta  = parseInt(btn.dataset.delta);
-    const min    = parseInt(target.min);
-    const max    = parseInt(target.max);
-    const newVal = Math.min(max, Math.max(min, parseInt(target.value) + delta));
+    const newVal = Math.min(parseInt(target.max), Math.max(parseInt(target.min), parseInt(target.value) + parseInt(btn.dataset.delta)));
     target.value = newVal;
     onConfigChange();
   });
 });
-
 colsInput.addEventListener('input', onConfigChange);
 rowsInput.addEventListener('input', onConfigChange);
 
@@ -146,7 +127,6 @@ function renderGridPreview() {
     cell.className = 'grid-cell';
     gridPreview.appendChild(cell);
   }
-  // Animate cells with class q/a alternating for visual
   gridPreview.querySelectorAll('.grid-cell').forEach((c, i) => {
     setTimeout(() => c.classList.add(i % 2 === 0 ? 'q' : 'a'), i * 12);
   });
@@ -156,11 +136,7 @@ backBtn.addEventListener('click', () => goToStep(1));
 
 // ─── Generate ─────────────────────────────────────────────────────
 generateBtn.addEventListener('click', async () => {
-  if (state.files.length === 0) {
-    toast('No hay imágenes para procesar', 'error');
-    return;
-  }
-
+  if (state.files.length === 0) { toast('No hay imágenes para procesar', 'error'); return; }
   setGenerating(true);
 
   const formData = new FormData();
@@ -169,25 +145,43 @@ generateBtn.addEventListener('click', async () => {
   formData.append('rows', state.rows);
 
   try {
-    const response = await fetch('generate', {
+    // Generar ambos PDFs (split)
+    const response = await fetch('generate_split', {
       method: 'POST',
       body: formData,
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ error: 'Error del servidor' }));
-      throw new Error(err.error || `Error ${response.status}`);
+      const err = await response.json().catch(() => ({ detail: 'Error del servidor' }));
+      throw new Error(err.detail || `Error ${response.status}`);
     }
 
-    const blob = await response.blob();
-    const url  = URL.createObjectURL(blob);
-    state.downloadUrl = url;
+    const data = await response.json();
+    state.questionsUrl = data.questions_url;
+    state.answersUrl   = data.answers_url;
+    state.totalSheets  = data.total_sheets;
+    state.totalCards   = data.total_cards;
 
-    downloadBtn.href = url;
-    resultMeta.textContent = `${state.files.length} página(s) · ${state.cols}×${state.rows} tarjetas/hoja`;
+    // Botón de descarga del PDF completo (también generamos uno combinado)
+    const formData2 = new FormData();
+    state.files.forEach((file, i) => formData2.append('images', file, `page_${i + 1}.jpg`));
+    formData2.append('cols', state.cols);
+    formData2.append('rows', state.rows);
+    const resp2 = await fetch('generate', { method: 'POST', body: formData2 });
+    if (resp2.ok) {
+      const blob = await resp2.blob();
+      downloadBtn.href = URL.createObjectURL(blob);
+    }
+
+    // Info de hojas
+    document.getElementById('printInfo').textContent =
+      `${state.totalCards} tarjetas · ${state.totalSheets} hoja${state.totalSheets !== 1 ? 's' : ''}`;
+
+    // Generar lista de hojas para instrucciones
+    buildSheetOrder(state.totalSheets);
 
     goToStep(3);
-    toast('¡PDF generado con éxito!', 'success');
+    toast('¡Tarjetas generadas!', 'success');
 
   } catch (err) {
     toast(`Error: ${err.message}`, 'error');
@@ -203,19 +197,85 @@ function setGenerating(loading) {
   generateBtn.querySelector('.btn-loader').style.display = loading ? 'flex' : 'none';
 }
 
+// ─── Print panel ──────────────────────────────────────────────────
+printBtn.addEventListener('click', () => {
+  printPanel.classList.toggle('hidden');
+  if (!printPanel.classList.contains('hidden')) {
+    showPrintPhase(1);
+  }
+});
+
+function showPrintPhase(n) {
+  ['phase1','phase2','phase3','phase4'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    const isVisible = i + 1 === n;
+    el.classList.toggle('hidden', !isVisible);
+
+    const video = el.querySelector('video');
+    if (video) {
+        if (isVisible) {
+            vide.muted = true;
+            video.currentTime = 0;
+            video.play().catch(() => {});
+        } else {
+            video.pause();
+        }
+    }
+  });
+
+  ['pstep1','pstep2','pstep3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active', 'done');
+    if (i + 1 < n)  el.classList.add('done');
+    if (i + 1 === n) el.classList.add('active');
+  });
+}
+
+document.getElementById('printQuestionsBtn').addEventListener('click', () => {
+  printPDF(state.questionsUrl, () => showPrintPhase(2));
+});
+
+document.getElementById('backToPhase1Btn').addEventListener('click', () => showPrintPhase(1));
+
+document.getElementById('continueToPhase3Btn').addEventListener('click', () => showPrintPhase(3));
+
+document.getElementById('printAnswersBtn').addEventListener('click', () => {
+  printPDF(state.answersUrl, () => showPrintPhase(4));
+});
+
+function printPDF(url, onDone) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow.print();
+      if (onDone) setTimeout(onDone, 1000);
+    }, 500);
+  };
+}
+
+function buildSheetOrder(total) {
+  const container = document.getElementById('sheetOrder');
+  container.innerHTML = '<div class="sheet-row"><strong>Orden de hojas al voltear:</strong></div>';
+  for (let i = 1; i <= total; i++) {
+    const row = document.createElement('div');
+    row.className = 'sheet-row';
+    row.innerHTML = `<strong>Hoja ${i}</strong> → al voltear queda al reverso de la Hoja ${i}`;
+    container.appendChild(row);
+  }
+}
+
 // ─── Restart ──────────────────────────────────────────────────────
 restartBtn.addEventListener('click', () => {
-  state.files = [];
-  state.cols  = 3;
-  state.rows  = 5;
-  state.downloadUrl = null;
+  state.files = []; state.cols = 3; state.rows = 5;
+  state.questionsUrl = null; state.answersUrl = null;
   previewGrid.innerHTML = '';
-  colsInput.value = 3;
-  rowsInput.value = 5;
-  cardTotal.textContent = 15;
+  colsInput.value = 3; rowsInput.value = 5; cardTotal.textContent = 15;
+  printPanel.classList.add('hidden');
   updateActionRow();
   goToStep(1);
-  if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl);
 });
 
 // ─── Toast ────────────────────────────────────────────────────────
@@ -225,11 +285,7 @@ function toast(msg, type = 'info') {
   el.className = `toast ${type}`;
   el.textContent = msg;
   container.appendChild(el);
-  setTimeout(() => {
-    el.style.opacity = '0';
-    el.style.transition = 'opacity 0.3s';
-    setTimeout(() => el.remove(), 300);
-  }, 3500);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3500);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────

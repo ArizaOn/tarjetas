@@ -1,240 +1,166 @@
 """
-pdf_generator.py — Genera el PDF de flashcards con ReportLab
-Formato: tamaño carta, cuadrícula configurable (cols x rows).
-
-Páginas IMPARES  → Preguntas
-Páginas PARES    → Respuestas (columnas espejadas para impresión doble cara)
-
-Para imprimir: doble cara, voltear por el lado corto.
+pdf_generator.py — Diseño minimalista, blanco y negro.
+Genera dos PDFs separados: preguntas y respuestas.
+Las columnas de respuestas van espejadas para impresión doble cara.
 """
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
-from reportlab.lib.colors import HexColor, black, white
+from reportlab.lib.colors import black, white
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import simpleSplit
 
-# ─── Paleta ──────────────────────────────────────────────────────
-COLOR_BG_Q     = HexColor("#0d0d0f")   # fondo pregunta (oscuro)
-COLOR_BG_A     = HexColor("#1a1a2e")   # fondo respuesta (azul muy oscuro)
-COLOR_ACCENT   = HexColor("#e8ff47")   # amarillo neón — número/etiqueta
-COLOR_ACCENT2  = HexColor("#47c8ff")   # azul claro — número respuesta
-COLOR_TEXT_Q   = HexColor("#f0efeb")   # texto pregunta
-COLOR_TEXT_A   = HexColor("#d0eeff")   # texto respuesta
-COLOR_BORDER   = HexColor("#2a2a35")   # borde de tarjeta
-COLOR_LABEL_BG = HexColor("#1e1e24")   # fondo de la etiqueta Q / R
-
-# ─── Tipografía ───────────────────────────────────────────────────
-FONT_MAIN  = "Helvetica-Bold"
+FONT_BOLD  = "Helvetica-Bold"
 FONT_BODY  = "Helvetica"
-FONT_MONO  = "Courier"
 
-# ─── Márgenes de página ───────────────────────────────────────────
-PAGE_MARGIN = 0.35 * inch
-CARD_PAD    = 8     # padding interno de cada tarjeta (pt)
-LABEL_H     = 14    # altura de la etiqueta "P" / "R" (pt)
-GUIDE_LW    = 0.25  # grosor de líneas guía de corte
-GUIDE_LEN   = 6     # longitud de marca de corte en las esquinas (pt)
+PAGE_MARGIN = 0.3 * inch
+CARD_PAD    = 8
+HEADER_H    = 16
+GUIDE_LEN   = 6
+GUIDE_LW    = 0.4
 
 
-def draw_cut_marks(c: canvas.Canvas, x: float, y: float, w: float, h: float):
-    """Dibuja marcas de corte en las 4 esquinas de una tarjeta."""
-    c.setStrokeColor(HexColor("#555566"))
+def draw_cut_marks(c, x, y, w, h):
+    c.setStrokeColor(black)
     c.setLineWidth(GUIDE_LW)
     L = GUIDE_LEN
-    corners = [
-        (x,     y,     L,  0,  0,  L),   # top-left
-        (x+w,   y,    -L,  0,  0,  L),   # top-right
-        (x,     y-h,   L,  0,  0, -L),   # bottom-left
-        (x+w,   y-h,  -L,  0,  0, -L),   # bottom-right
-    ]
-    for cx, cy, dx1, dy1, dx2, dy2 in corners:
-        c.line(cx, cy, cx + dx1, cy + dy1)
-        c.line(cx, cy, cx + dx2, cy + dy2)
+    for cx, cy, dx1, dy1, dx2, dy2 in [
+        (x,   y,    L,  0,  0,  L),
+        (x+w, y,   -L,  0,  0,  L),
+        (x,   y-h,  L,  0,  0, -L),
+        (x+w, y-h, -L,  0,  0, -L),
+    ]:
+        c.line(cx, cy, cx+dx1, cy+dy1)
+        c.line(cx, cy, cx+dx2, cy+dy2)
 
 
-def draw_card(
-    c: canvas.Canvas,
-    x: float, y: float,
-    card_w: float, card_h: float,
-    label: str,
-    number: int,
-    body_text: str,
-    is_question: bool,
-):
-    """
-    Dibuja una tarjeta individual.
-    x, y = esquina superior izquierda (coordenadas ReportLab: y crece hacia arriba).
-    """
-    bg_color     = COLOR_BG_Q if is_question else COLOR_BG_A
-    text_color   = COLOR_TEXT_Q if is_question else COLOR_TEXT_A
-    accent_color = COLOR_ACCENT if is_question else COLOR_ACCENT2
+def draw_card(c, x, y, card_w, card_h, number, body_text, is_question):
+    c.setFillColor(white)
+    c.rect(x, y - card_h, card_w, card_h, fill=1, stroke=0)
 
-    # ── Fondo ──────────────────────────────────────────────────────
-    c.setFillColor(bg_color)
-    c.setStrokeColor(COLOR_BORDER)
-    c.setLineWidth(0.5)
-    c.rect(x, y - card_h, card_w, card_h, fill=1, stroke=1)
+    header_label = f"PREGUNTA {number:02d}" if is_question else f"RESPUESTA {number:02d}"
+    c.setStrokeColor(black)
+    c.setLineWidth(0.8)
+    c.line(x, y - HEADER_H, x + card_w, y - HEADER_H)
 
-    # ── Etiqueta superior (P / R + número) ─────────────────────────
-    label_y = y - LABEL_H
-    c.setFillColor(COLOR_LABEL_BG)
-    c.rect(x, label_y, card_w, LABEL_H, fill=1, stroke=0)
+    c.setFillColor(black)
+    c.setFont(FONT_BOLD, 7)
+    c.drawString(x + CARD_PAD, y - HEADER_H + 5, header_label)
 
-    c.setFillColor(accent_color)
-    c.setFont(FONT_MONO, 7)
-    tag_text = f"{label} {number:02d}"
-    c.drawString(x + CARD_PAD, label_y + 4, tag_text)
+    text_area_y = y - HEADER_H - CARD_PAD
+    text_area_h = card_h - HEADER_H - CARD_PAD * 2
+    text_area_w = card_w - CARD_PAD * 2
 
-    # Línea separadora entre etiqueta y cuerpo
-    c.setStrokeColor(COLOR_BORDER)
-    c.setLineWidth(0.5)
-    c.line(x, label_y, x + card_w, label_y)
+    font_size   = _fit_font_size(body_text, text_area_w, text_area_h)
+    line_height = font_size * 1.4
 
-    # ── Texto del cuerpo ───────────────────────────────────────────
-    text_area_y  = label_y - CARD_PAD
-    text_area_h  = card_h - LABEL_H - CARD_PAD * 2
-    text_area_w  = card_w - CARD_PAD * 2
-
-    font_size    = _fit_font_size(body_text, text_area_w, text_area_h)
-    line_height  = font_size * 1.35
-
-    c.setFillColor(text_color)
     c.setFont(FONT_BODY, font_size)
-
-    # Dividir texto en líneas que quepan en el ancho
-    lines = simpleSplit(body_text, FONT_BODY, font_size, text_area_w)
+    lines        = simpleSplit(body_text, FONT_BODY, font_size, text_area_w)
     total_text_h = len(lines) * line_height
-    # Centrar verticalmente
-    start_y = text_area_y - (text_area_h - total_text_h) / 2
+    start_y      = text_area_y - (text_area_h - total_text_h) / 2
 
     for i, line in enumerate(lines):
-        ly = start_y - i * line_height
-        c.drawString(x + CARD_PAD, ly - font_size, line)
+        c.drawString(x + CARD_PAD, start_y - i * line_height - font_size, line)
 
-    # ── Marcas de corte ────────────────────────────────────────────
     draw_cut_marks(c, x, y, card_w, card_h)
 
 
-def _fit_font_size(text: str, max_w: float, max_h: float) -> float:
-    """
-    Calcula el tamaño de fuente máximo para que el texto quepa.
-    Límites: 7pt mínimo, 11pt máximo (tarjetas pequeñas, texto corto).
-    """
+def _fit_font_size(text, max_w, max_h):
     for size in range(11, 6, -1):
-        lines = simpleSplit(text, FONT_BODY, size, max_w)
-        needed_h = len(lines) * size * 1.35
-        if needed_h <= max_h:
+        if len(simpleSplit(text, FONT_BODY, size, max_w)) * size * 1.4 <= max_h:
             return size
     return 7
 
 
-def generate_pdf(
-    flashcards: list[dict],
-    output_path: str,
-    cols: int = 3,
-    rows: int = 5,
-) -> None:
-    """
-    Genera el PDF de flashcards.
+def _draw_single_page(c, cards, field, is_question, cols, card_w, card_h,
+                      page_margin, page_h, offset, mirror_cols, page_number):
+    """Dibuja una página con número de hoja en la esquina superior derecha."""
+    PAGE_W = letter[0]
+    # Número de hoja para instrucciones
+    c.setFont(FONT_BOLD, 7)
+    c.setFillColor(black)
+    label = f"Hoja {page_number} — {'PREGUNTAS' if is_question else 'RESPUESTAS'}"
+    c.drawRightString(PAGE_W - page_margin, page_h - page_margin + 4, label)
 
-    Args:
-        flashcards:  Lista de dicts {'pregunta': str, 'respuesta': str}.
-        output_path: Ruta de salida del PDF.
-        cols:        Columnas de tarjetas por hoja.
-        rows:        Filas de tarjetas por hoja.
-    """
-    PAGE_W, PAGE_H = letter  # 612 x 792 pt
+    for idx, card in enumerate(cards):
+        row = idx // cols
+        col = (cols - 1 - idx % cols) if mirror_cols else (idx % cols)
+        x   = page_margin + col * card_w
+        y   = page_h - page_margin - row * card_h
+        draw_card(c, x, y, card_w, card_h, offset + idx + 1,
+                  card.get(field, ""), is_question)
 
+
+def generate_pdf(flashcards, output_path, cols=3, rows=5):
+    """Genera un PDF combinado (preguntas + respuestas intercaladas)."""
+    PAGE_W, PAGE_H = letter
     cards_per_page = cols * rows
-
     c = canvas.Canvas(output_path, pagesize=letter)
     c.setTitle("FlashScan — Tarjetas de estudio")
-    c.setAuthor("FlashScan")
 
-    # ── Dimensiones de tarjeta ─────────────────────────────────────
     usable_w = PAGE_W - 2 * PAGE_MARGIN
     usable_h = PAGE_H - 2 * PAGE_MARGIN
     card_w   = usable_w / cols
     card_h   = usable_h / rows
 
-    # ── Calcular grupos de tarjetas por hoja ───────────────────────
+    sheet = 1
     for page_start in range(0, len(flashcards), cards_per_page):
-        group = flashcards[page_start : page_start + cards_per_page]
-
-        # ── Página IMPAR (preguntas) ────────────────────────────────
-        _draw_page(
-            c=c,
-            cards=group,
-            field="pregunta",
-            label="P",
-            is_question=True,
-            cols=cols,
-            rows=rows,
-            card_w=card_w,
-            card_h=card_h,
-            page_margin=PAGE_MARGIN,
-            page_h=PAGE_H,
-            offset=page_start,
-            mirror_cols=False,
-        )
+        group = flashcards[page_start: page_start + cards_per_page]
+        _draw_single_page(c, group, "pregunta",  True,  cols, card_w, card_h,
+                          PAGE_MARGIN, PAGE_H, page_start, False, sheet)
         c.showPage()
-
-        # ── Página PAR (respuestas, columnas espejadas) ─────────────
-        _draw_page(
-            c=c,
-            cards=group,
-            field="respuesta",
-            label="R",
-            is_question=False,
-            cols=cols,
-            rows=rows,
-            card_w=card_w,
-            card_h=card_h,
-            page_margin=PAGE_MARGIN,
-            page_h=PAGE_H,
-            offset=page_start,
-            mirror_cols=True,   # ← espejo horizontal para doble cara
-        )
+        _draw_single_page(c, group, "respuesta", False, cols, card_w, card_h,
+                          PAGE_MARGIN, PAGE_H, page_start, True, sheet)
         c.showPage()
+        sheet += 1
 
     c.save()
-    print(f"[PDF] Guardado en {output_path}")
+    print(f"[PDF] Combinado guardado en {output_path}")
 
 
-def _draw_page(
-    c: canvas.Canvas,
-    cards: list[dict],
-    field: str,
-    label: str,
-    is_question: bool,
-    cols: int,
-    rows: int,
-    card_w: float,
-    card_h: float,
-    page_margin: float,
-    page_h: float,
-    offset: int,
-    mirror_cols: bool,
-):
-    """Dibuja una página completa (preguntas o respuestas)."""
-    for idx, card in enumerate(cards):
-        row = idx // cols
-        col = idx % cols
+def generate_pdf_questions(flashcards, output_path, cols=3, rows=5):
+    """Genera PDF solo con páginas de preguntas."""
+    PAGE_W, PAGE_H = letter
+    cards_per_page = cols * rows
+    c = canvas.Canvas(output_path, pagesize=letter)
+    c.setTitle("FlashScan — Preguntas")
 
-        # Espejo horizontal: la col 0 pasa a ser la última, etc.
-        if mirror_cols:
-            col = (cols - 1) - col
+    usable_w = PAGE_W - 2 * PAGE_MARGIN
+    usable_h = PAGE_H - 2 * PAGE_MARGIN
+    card_w   = usable_w / cols
+    card_h   = usable_h / rows
 
-        x = page_margin + col * card_w
-        y = page_h - page_margin - row * card_h  # y es la esquina superior
+    sheet = 1
+    for page_start in range(0, len(flashcards), cards_per_page):
+        group = flashcards[page_start: page_start + cards_per_page]
+        _draw_single_page(c, group, "pregunta", True, cols, card_w, card_h,
+                          PAGE_MARGIN, PAGE_H, page_start, False, sheet)
+        c.showPage()
+        sheet += 1
 
-        draw_card(
-            c=c,
-            x=x, y=y,
-            card_w=card_w, card_h=card_h,
-            label=label,
-            number=offset + idx + 1,
-            body_text=card.get(field, ""),
-            is_question=is_question,
-        )
+    c.save()
+    print(f"[PDF] Preguntas guardado en {output_path}")
+
+
+def generate_pdf_answers(flashcards, output_path, cols=3, rows=5):
+    """Genera PDF solo con páginas de respuestas (columnas espejadas)."""
+    PAGE_W, PAGE_H = letter
+    cards_per_page = cols * rows
+    c = canvas.Canvas(output_path, pagesize=letter)
+    c.setTitle("FlashScan — Respuestas")
+
+    usable_w = PAGE_W - 2 * PAGE_MARGIN
+    usable_h = PAGE_H - 2 * PAGE_MARGIN
+    card_w   = usable_w / cols
+    card_h   = usable_h / rows
+
+    sheet = 1
+    for page_start in range(0, len(flashcards), cards_per_page):
+        group = flashcards[page_start: page_start + cards_per_page]
+        _draw_single_page(c, group, "respuesta", False, cols, card_w, card_h,
+                          PAGE_MARGIN, PAGE_H, page_start, True, sheet)
+        c.showPage()
+        sheet += 1
+
+    c.save()
+    print(f"[PDF] Respuestas guardado en {output_path}")
