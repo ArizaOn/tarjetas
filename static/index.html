@@ -11,6 +11,40 @@
 
   <div class="bg-grid"></div>
 
+  <!-- ── Menú hamburguesa ── -->
+  <button class="fs-hamburger" id="fsHamburger" aria-label="Abrir menú">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="fs-nav-overlay" id="fsNavOverlay"></div>
+
+  <nav class="fs-side-nav" id="fsSideNav">
+    <div class="fs-nav-header">
+      <span class="fs-nav-title">ROCKOLA</span>
+      <button class="fs-nav-close" id="fsNavClose">✕</button>
+    </div>
+    <ul class="fs-nav-links">
+      <li>
+        <a href="/" class="fs-nav-link">
+          <span class="fs-nav-icon">🎵</span>
+          <span>Descargador</span>
+        </a>
+      </li>
+      <li>
+        <a href="/tarjetas/" class="fs-nav-link active">
+          <span class="fs-nav-icon">⚡</span>
+          <span>Flash Cards</span>
+        </a>
+      </li>
+      <li>
+        <a href="/me" class="fs-nav-link">
+          <span class="fs-nav-icon">👤</span>
+          <span>Yo</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
   <header>
     <div class="logo">
       <span class="logo-icon">⚡</span>
@@ -101,7 +135,6 @@
       <h2>¡Listo!</h2>
       <p class="step-desc">Tus tarjetas están generadas. Descarga el PDF o usa la impresión controlada para imprimir doble cara correctamente.</p>
 
-      <!-- Botones principales -->
       <div class="result-buttons">
         <a class="btn-download" id="downloadBtn" href="#" download="flashcards.pdf">
           ↓ Descargar PDF completo
@@ -111,9 +144,7 @@
         </button>
       </div>
 
-      <!-- Panel de impresión controlada -->
       <div class="print-panel hidden" id="printPanel">
-
         <div class="print-step-indicator">
           <div class="pstep active" id="pstep1">
             <span class="pstep-num">1</span>
@@ -131,39 +162,17 @@
           </div>
         </div>
 
-        <!-- Fase 1: Imprimir preguntas -->
         <div class="print-phase" id="phase1">
           <h3>Paso 1 — Imprime las preguntas</h3>
-
-          <!-- Video fase 1 -->
-          <video
-            class="phase-video"
-            src="/tarjetas/static/01.mp4"
-            autoplay
-            loop
-            muted
-            playsinline
-          ></video>
-
+          <video class="phase-video" src="/tarjetas/static/01.mp4" autoplay loop muted playsinline></video>
           <p>Se abrirá el diálogo de impresión con las páginas de preguntas. Imprime todas las hojas normalmente.</p>
           <div class="print-info" id="printInfo"></div>
           <button class="btn-primary" id="printQuestionsBtn">🖨 Imprimir preguntas ahora</button>
         </div>
 
-        <!-- Fase 2: Instrucciones para acomodar -->
         <div class="print-phase hidden" id="phase2">
           <h3>Paso 2 — Acomoda las hojas</h3>
-
-          <!-- Video fase 2 -->
-          <video
-            class="phase-video"
-            src="/tarjetas/static/02.mp4"
-            autoplay
-            loop
-            muted
-            playsinline
-          ></video>
-
+          <video class="phase-video" src="/tarjetas/static/02.mp4" autoplay loop muted playsinline></video>
           <div class="instructions">
             <p>Ten en cuenta que estas instrucciones pueden ir variando dependiendo de tu impresora.</p>
             <p>Antes de continuar, sigue estas instrucciones para que las respuestas queden al reverso de cada pregunta:</p>
@@ -182,19 +191,16 @@
           </div>
         </div>
 
-        <!-- Fase 3: Imprimir respuestas -->
         <div class="print-phase hidden" id="phase3">
           <h3>Paso 3 — Imprime las respuestas</h3>
           <p>Se abrirá el diálogo de impresión con las páginas de respuestas. Las respuestas quedarán exactamente al reverso de cada pregunta.</p>
           <button class="btn-primary" id="printAnswersBtn">🖨 Imprimir respuestas ahora</button>
         </div>
 
-        <!-- Fase 4: Completado -->
         <div class="print-phase hidden" id="phase4">
           <h3>✓ ¡Impresión completa!</h3>
           <p>Ahora solo recorta las tarjetas siguiendo las marcas de corte. ¡A estudiar!</p>
         </div>
-
       </div>
 
       <div class="action-row" style="margin-top:1.5rem">
@@ -202,7 +208,6 @@
       </div>
     </section>
 
-    <!-- Progress indicator -->
     <div class="progress-bar">
       <div class="progress-step active" data-step="1">1</div>
       <div class="progress-line"></div>
@@ -214,10 +219,24 @@
   </main>
 
   <div class="toast-container" id="toastContainer"></div>
-
   <iframe id="printFrameQ" style="display:none"></iframe>
   <iframe id="printFrameA" style="display:none"></iframe>
 
   <script src="/tarjetas/static/script.js"></script>
+
+  <script>
+    const fsHamburger  = document.getElementById('fsHamburger');
+    const fsSideNav    = document.getElementById('fsSideNav');
+    const fsNavOverlay = document.getElementById('fsNavOverlay');
+    const fsNavClose   = document.getElementById('fsNavClose');
+
+    function fsOpen()  { fsSideNav.classList.add('open'); fsNavOverlay.classList.add('open'); fsHamburger.classList.add('open'); }
+    function fsClose() { fsSideNav.classList.remove('open'); fsNavOverlay.classList.remove('open'); fsHamburger.classList.remove('open'); }
+
+    fsHamburger.addEventListener('click', fsOpen);
+    fsNavClose.addEventListener('click', fsClose);
+    fsNavOverlay.addEventListener('click', fsClose);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') fsClose(); });
+  </script>
 </body>
 </html>
